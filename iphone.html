@@ -177,20 +177,22 @@
             transform: scale(0.95);
         }
 
-        /* Map Modal Styles */
+        /* Map Modal Styles for Mobile */
         #map-modal {
             pointer-events: auto;
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            box-sizing: border-box;
+            padding: 12px;
         }
 
         #map-modal.hidden {
@@ -198,26 +200,47 @@
         }
 
         #map-modal-content {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            width: 80%;
-            max-width: 800px;
-            color: black;
+            background: #ffffff;
+            padding: 16px;
+            border-radius: 16px;
+            width: 95%;
+            max-width: 480px;
+            max-height: 90vh;
+            color: #222;
             position: relative;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        #map-modal-content h3 {
+            margin: 0 0 6px 0;
+            font-size: 1.15rem;
+            color: #1976d2;
+        }
+
+        #map-modal-content p {
+            margin: 0 0 10px 0;
+            font-size: 0.85rem;
+            color: #555;
         }
 
         #map-wrapper {
             position: relative;
             width: 100%;
-            height: 500px;
-            margin: 15px 0;
-            border: 2px solid #ccc;
+            height: 320px;
+            max-height: 48vh;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            touch-action: none;
         }
 
         #leaflet-map {
             width: 100%;
             height: 100%;
+            touch-action: none;
         }
 
         #map-crosshair {
@@ -225,12 +248,13 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 40px;
-            height: 40px;
-            border: 2px solid red;
+            width: 36px;
+            height: 36px;
+            border: 2px solid #f44336;
             border-radius: 50%;
             pointer-events: none;
             z-index: 999;
+            box-shadow: 0 0 6px rgba(244,67,54,0.6);
         }
         
         #map-crosshair::after {
@@ -239,14 +263,41 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: red;
-            font-size: 20px;
+            color: #f44336;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .map-quick-buttons {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .map-quick-btn {
+            background: #eee;
+            color: #333;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            width: auto;
+            flex: 1;
         }
 
         .modal-buttons {
             display: flex;
             gap: 10px;
-            justify-content: flex-end;
+            margin-top: 12px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px 10px;
+            font-size: 0.95rem;
+            border-radius: 8px;
         }
 
         #loading-overlay {
@@ -321,15 +372,20 @@
     <!-- Map Selection Modal -->
     <div id="map-modal" class="hidden">
         <div id="map-modal-content">
-            <h2 style="margin-top: 0;">選擇地圖標靶中心點</h2>
-            <p>拖曳並縮放地圖，將紅色的十字對準您想要的標靶中心。</p>
+            <h3>選擇地圖標靶中心點</h3>
+            <p>滑動縮放地圖，紅十字即為標靶中心：</p>
+            <div class="map-quick-buttons">
+                <button type="button" class="map-quick-btn" id="btn-locate-me">📍 我的位置</button>
+                <button type="button" class="map-quick-btn" id="btn-ncu">🏫 中央大學</button>
+                <button type="button" class="map-quick-btn" id="btn-taipei101">🏙️ 台北101</button>
+            </div>
             <div id="map-wrapper">
                 <div id="leaflet-map"></div>
                 <div id="map-crosshair"></div>
             </div>
             <div class="modal-buttons">
-                <button id="cancel-map-btn" style="background: #999;">取消</button>
-                <button id="confirm-map-btn">確認選擇並更新標靶</button>
+                <button id="cancel-map-btn" style="background: #777;">取消</button>
+                <button id="confirm-map-btn">確認選取並更新</button>
             </div>
         </div>
     </div>
@@ -541,16 +597,39 @@
             
             // Map Modal Logic
             openMapBtn.addEventListener('click', () => {
-                document.exitPointerLock();
                 mapModal.classList.remove('hidden');
                 if (!leafletMap) {
-                    leafletMap = L.map('leaflet-map').setView([24.9682, 121.1945], 16);
+                    leafletMap = L.map('leaflet-map', {
+                        zoomSnap: 1,
+                        zoomDelta: 1
+                    }).setView([24.9682, 121.1945], 16);
                     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
                         maxZoom: 19,
                         attribution: 'Tiles &copy; Esri'
                     }).addTo(leafletMap);
                 }
-                setTimeout(() => leafletMap.invalidateSize(), 100);
+                setTimeout(() => leafletMap && leafletMap.invalidateSize(), 150);
+                setTimeout(() => leafletMap && leafletMap.invalidateSize(), 350);
+            });
+
+            // 快速地點按鈕
+            const btnNCU = document.getElementById('btn-ncu');
+            if (btnNCU) btnNCU.addEventListener('click', () => leafletMap && leafletMap.setView([24.9682, 121.1945], 16));
+
+            const btn101 = document.getElementById('btn-taipei101');
+            if (btn101) btn101.addEventListener('click', () => leafletMap && leafletMap.setView([25.0339, 121.5644], 16));
+
+            const btnLocate = document.getElementById('btn-locate-me');
+            if (btnLocate) btnLocate.addEventListener('click', () => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition((pos) => {
+                        leafletMap && leafletMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                    }, (err) => {
+                        alert('無法取得定位，請確認已允許 Safari 的位置存取權限。');
+                    }, { enableHighAccuracy: true, timeout: 8000 });
+                } else {
+                    alert('您的裝置不支援地理定位。');
+                }
             });
             
             cancelMapBtn.addEventListener('click', () => {
@@ -560,7 +639,7 @@
             confirmMapBtn.addEventListener('click', () => {
                 mapModal.classList.add('hidden');
                 const center = leafletMap.getCenter();
-                const zoom = leafletMap.getZoom();
+                const zoom = Math.round(leafletMap.getZoom());
                 updateTargetMap(center.lat, center.lng, zoom);
                 resetGame();
             });
@@ -703,7 +782,7 @@
         }
 
         function showResult(coordsList) {
-            document.exitPointerLock();
+            if (document.exitPointerLock) document.exitPointerLock();
             resultPanel.classList.remove('hidden');
             
             if (gameMode === 'single') {
